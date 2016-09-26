@@ -1,0 +1,161 @@
+---
+title: "EDA Exercise 3"
+author: "Aaron Niskin"
+date: "August 30, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+University of California Irvine maintains an interesting collection of data sets for those interested in machine
+learning
+
+<https://archive.ics.uci.edu/ml/datasets.html>
+
+Navigate to <https://archive.ics.uci.edu/ml/machine-learning-databases/00296/>
+
+and download the zipped diabetes data set.
+
+Prepare an R Markdown document which documents the use of R tools/code to address the following
+
+##1. Read the data into memory.
+
+```{r eval=TRUE}
+df <- read.csv("dataset_diabetes/diabetic_data.csv")
+```
+
+##2. Document any missing values in the data.
+
+```{r eval=FALSE, echo=FALSE}
+### This is data computed using the below function. I stored it as a variable so that I don't hvae to compute that function every time I want to compile the PDF.
+invalidRows <- scan(file="invalidRows.txt", sep="\n", what="character")
+```
+
+Sorry... I think I'm enjoying this a bit too much. I wanted to try functional programming, so this is me doing that. So, I'm sorry for nerding out super hard on this. But look how cool that is! I can completely reuse that function.
+
+```{r eval=TRUE}
+hasInvalidDataNames <- function(dats, nullValues) {
+  hasInvalidData <- function(col_name) {
+    occurrences <- sapply(dats[,col_name], function(x) {
+      is.null(x) || is.na(x) || x %in% nullValues
+      })
+    length(which(occurrences))
+  }
+  sapply(names(dats), hasInvalidData)
+}
+invalidRows_tmp <- hasInvalidDataNames(df, c("", "None", "?", "Unknown/Invalid"))
+invalidRows     <- invalidRows_tmp[invalidRows_tmp > 0]
+```
+
+```{r}
+invalidRows
+```
+
+
+```{r eval=TRUE, echo=FALSE}
+### This is so that I don't have to keep on running the above code every time I edit the file.
+write.csv(invalidRows, "invalidRows.csv")
+```
+
+So, the rows that have missing values (to include any empty strings, question marks, "None"'s, or "Unknown/Invalid"). If one were to decide to not consider one of those values as missing, just recompute with a different second argument vector.
+
+##3. What percentage of patients are admitted from the emergency room? Given a patient is admitted from the emergency room, what is the probability that their discharge status will be “expired”?
+
+So first let's store the subset of those who were admitted from the emergency room, get the count and the total count of all patients admitted into these 150 hospitals.
+
+```{r eval=TRUE}
+emergency_admits <- df[df$admission_source_id == 7,]
+num_emergency <- dim(emergency_admits)[1]
+num_patients <- dim(df)[1]
+```
+
+Now, we can divide the number of emergency room admitees by the total number of patients (then multiply by 100) to get the percentage.
+
+```{r eval=TRUE}
+answer3a <- num_emergency / num_patients
+```
+
+The percentage of people admitted to the hospital from the emergency room is approximately, `r sprintf("%.1f", answer3a * 100)`%.
+
+Now we can further subset the emergencyroom admitees and redo the same.
+
+```{r}
+num_exp <- dim(emergency_admits[emergency_admits$discharge_disposition_id == 11,])[1]
+answer3b <- num_exp / num_emergency
+```
+
+So, the total probability that a person who was admitted from the emergency room will also have an expired discharge status is approximately, `r sprintf("%.1f", answer3b * 100)`%.
+
+
+##4. What is the most frequent admission status? What is the most frequent discharge status? For the most frequent admission status, what is the most frequent discharge status?
+
+Let's check out our data a bit just to see what we're working with.
+
+```{r}
+table(df$admission_type_id)
+```
+
+We can see that it's 1 (corresponding to Emergencyroom admittance), but let's do this programmatically:
+
+
+```{r eval=FALSE, include=FALSE}
+getMostFrequentAttr <- function(dats) {
+  function(attr) {
+    countAttrVal <- function(attrVal) {
+      dim(dats[attr==attrVal,])[1]
+    }
+    sapply(unique(dats[,attr]), countAttrVal)
+  }
+}
+
+mostFreqAdmStat <-getMostFrequentAttr(df)("admission_type_id")
+```
+
+```{r}
+admTab <- table(df$admission_type_id)
+mostFreqAdm <- names(which(admTab == max(admTab)))
+mostFreqAdm
+```
+
+And again for disposition id:
+
+```{r}
+table(df$discharge_disposition_id)
+```
+
+So we should get 1 again (corresponding to "discharged to home").
+
+```{r}
+disTabs <- table(df$discharge_disposition_id)
+mostFreqDis <- names(which(disTabs == max(disTabs)))
+mostFreqDis
+```
+
+Just to make sure we're not getting 1 due to some anomaly or misunderstanding of R somewhere, let's try to get a value whose name is not the same as the array index, like 22,1993 by computing:
+
+```{r}
+names(which(disTabs == 1993))
+```
+
+```{r}
+table(df[df$admission_type_id == mostFreqAdm, "discharge_disposition_id"])
+```
+
+```{r}
+MFATab <- table(df[df$admission_type_id == mostFreqAdm, "discharge_disposition_id"])
+names(which(MFATab == max(MFATab)))
+```
+
+
+
+##5. Characterize the distribution of admission type.
+
+```{r}
+hist(df$admission_type_id)
+```
+
+It looks roughly like a geometric distribution to me, but I will investigate tools to identify the distribution a bit more so as to get a better estimation.
+
