@@ -1,0 +1,49 @@
+---
+output: pdf_document
+---
+<!--Code for importing CSV and JSON files into memory.
+      Written by Aaron Niskin on 25 AUG 2016  -->
+
+---
+title: "Assignment 2"
+author: "Aaron Niskin"
+date: "August 25, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+There is a great deal of data available in the form of Extensible Markup Language (xml) files. There is a
+good reference for xml files:
+https://www.sitepoint.com/really-good-introduction-xml/
+Navigate to http://www.cs.washington.edu/research/xmldatasets/www/repository.html#auctions
+Prepare an R Markdown document which documents the use of R tools/code to address the following
+
+1. Download the 277KB xml file associated to Reed courses.
+```{r, eval = TRUE, include=TRUE}
+library(XML)
+reed_df <- xmlToDataFrame("http://www.cs.washington.edu/research/xmldatasets/data/courses/reed.xml")
+```
+
+2. How many distinct subjects are listed in the document?
+
+```{r, eval=TRUE, include=TRUE}
+answer_2 <- length(unique(reed_df[,'subj']))
+answer_2
+```
+
+3. How many courses have a NULL instructor listing?
+
+```{r, eval=TRUE, include=TRUE}
+answer_3 <- length(reed_df[reed_df$instructor == '',][,'instructor'])
+answer_3
+```
+
+4. How many distinct instructors are listed?
+
+```{r, eval=TRUE, include=TRUE}
+answer_4 <- length(unique(reed_df[,'instructor'][reed_df$instructor != '']))
+answer_4
+```
+There are `r answer_4` instructors.
