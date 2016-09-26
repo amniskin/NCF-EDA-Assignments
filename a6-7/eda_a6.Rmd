@@ -1,0 +1,93 @@
+---
+title: "EDA - Assignments 6 and 7"
+author: "Aaron Niskin"
+date: "September 8, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+1.  Read the data
+```{r, echo=FALSE}
+setwd("~/Documents/courses/newCollege/current/eda/assignments/a6-7/")
+```
+
+```{r}
+library("RWeka", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.3")
+dats <- read.arff("Chronic_Kidney_Disease/chronic_kidney_disease_full.arff")
+```
+
+So we check out our data, and everything seems to look fine, but just in case, let's check out the file (I've been told that there may be an extra comma in there).
+
+```{bash, include=TRUE}
+grep ',,' Chronic_Kidney_Disease/chronic_kidney_disease_full.arff
+```
+
+and sure enough, it's there. At this point we want to go into our favorite VIM editor, and check this out (after all, as we can see from the data, null values are supposed to be denoted by single question marks).
+
+
+```{bash, include=FALSE}
+rm Chronic_Kidney_Disease/chronic_kidney_disease_full_edit.arff &&
+touch Chronic_Kidney_Disease/chronic_kidney_disease_full_edit.arff &&
+cat Chronic_Kidney_Disease/chronic_kidney_disease_full.arff | sed 's/,,/,/' >> Chronic_Kidney_Disease/chronic_kidney_disease_full_edit.arff
+```
+
+```{r}
+kidneyDats <- read.arff("Chronic_Kidney_Disease/chronic_kidney_disease_full_edit.arff")
+```
+2.  Assess the completeness of the data
+```{r}
+sum(complete.cases(kidneyDats))
+dim(kidneyDats)
+```
+    because I feel as though this isn't being too descriptive, I'll use a function I wrote for assignment 3:
+    
+```{r}
+hasInvalidDataNames <- function(dats, nullValues) {
+  hasInvalidData <- function(col_name) {
+    occurrences <- sapply(dats[,col_name], function(x) {
+      is.null(x) || is.na(x) || x %in% nullValues
+      })
+    length(which(occurrences))
+  }
+  sapply(names(dats), hasInvalidData)
+}
+invalidRows_tmp <- hasInvalidDataNames(dats, c("", "None", "?", "Unknown/Invalid"))
+invalidRows     <- invalidRows_tmp[invalidRows_tmp > 0]
+invalidRows
+```
+    So, if you're tryingto model pcc against age, for instance, this should be sufficient. If, on the other hand, you need a red blood count (rbc), then you have about 60% of the data (about 250 data points), so it's not a huge amount, but maybe enough to guide another experiment.
+
+3.  Discretize the potasium feature using 5 bins containing equal numbers of observations
+
+```{r}
+discrete_pot <- cut(dats$pot,
+                    breaks=quantile(dats$pot, seq(0, 1, 0.2), na.rm = TRUE),
+                    include.lowest = TRUE)
+```
+
+4.  Discretize the potasium feature using 5 bins of equal length
+
+```{r}
+disc_pot_2 <- cut(dats$pot, 5, include.lowest = TRUE)
+```
+
+5.  Discretize the potasium feature using a topdown approach from the discretize package
+
+```{r}
+tmp = cbind(dats$pot[!is.na(dats$pot)], dats$pot[!is.na(dats$pot)])
+tmp <- with(dats, discretization::disc.Topdown(tmp, method = 1))
+tmp_doit <- function(a) {
+  return(paste(unname(tmp$cutp[[1]])[a], unname(tmp$cutp[[1]])[a + 1], sep="-"))
+}
+tmp2 <- lapply(tmp$Disc.data[[1]], function(a) {return(c(tmp_doit=a))})
+```
+
+6.  Discretize the potasium feature using a bottomup approach from the discretize package
+
+
+
+____

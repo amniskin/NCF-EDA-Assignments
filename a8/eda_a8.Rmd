@@ -1,0 +1,62 @@
+---
+title: "EDA - Assignment 8"
+author: "Aaron Niskin"
+date: "September 20, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+setwd("~/Documents/courses/newCollege/current/eda/assignments/a8/")
+```
+
+Florida is a “right to know state.” While it may be unclear what this means, there are public sites which host information concerning who gets paid what. One such site can be found at
+
+http://floridahasarighttoknow.myflorida.com/search_state_payroll
+
+Visit the site and download all available salary data.
+
+Prepare an R Markdown file which documents the steps you take in answering the following questions:
+
+```{r}
+emp_data <- read.csv("emp.csv")
+```
+
+1.  How many people in the state of Florida work for the State University System?
+
+```{r}
+dim(emp_data)
+```
+
+    But,
+    
+```{r}
+dim(unique(emp_data[,c("Position.Number", "Last.Name", "First.Name")]))
+```
+
+    So about 84,315 people are listed, but a bunch are going to be duplicates (people who are paid for two or more different jobs, etc). So we cah assume it would be somewhere around 62,324, but upon inspection, we see there are some errors in the `Position.Number` where they just filled in missing data with 0. And we're not entirely sure that `Position.Number` is unique either.
+
+2.  How many people in the State University System are full professors?
+    
+```{r}
+dim(unique(emp_data[emp_data$Class.Title == "PROFESSOR",
+                    c("Position.Number", "Last.Name", "First.Name")]))
+```
+
+    About 4476, give or take a few errors here and there.
+
+
+3.  What is the median salary of a full professor in the State University System?
+
+```{r}
+median(emp_data[emp_data$Class.Title == "PROFESSOR", "Annual.Salary"], na.rm = TRUE)
+```
+
+4.  How many full professors are female?
+
+5.  Give some measure of confidence involving your results.
+
+To address 4., it might be useful to construct or otherwise locate a list of female first names and think about join.
