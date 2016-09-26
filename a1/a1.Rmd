@@ -1,0 +1,52 @@
+<!--Code for importing CSV and JSON files into memory.
+      Written by Aaron Niskin on 25 AUG 2016  -->
+
+---
+title: "md_test1_1"
+author: "Aaron Niskin"
+date: "August 23, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, eval = FALSE}
+# To import CSV data
+csv_url <- "https://data.somervillema.gov/api/views/jdcq-3gza/rows.csv?accessType=DOWNLOAD"
+data_csv <- read.csv(csv_url, header = TRUE)
+
+# To import JSON data
+library("rjson")
+json_url <- "https://data.somervillema.gov/api/views/jdcq-3gza/rows.json?accessType=DOWNLOAD"
+data_json_RAW <- fromJSON(file=json_url)
+
+# -- Organize the nonsense into a list of dictionaries (R considers this a matrix, I guess)
+data_json_rows <- sapply(data_json_RAW[['data']], function(x) {
+  c("id"= x[[1]], "date"=x[[9]], "time"=x[[10]], fromJSON(x[[11]][[1]]))
+})
+
+# -- For some reason, as.data.frame expects the transpose of data_json_rows
+data_json <-as.data.frame(t(data_json_rows))
+```
+Vectors, Matrices, Frames, Lists
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
