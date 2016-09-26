@@ -1,0 +1,71 @@
+---
+title: "EDA Exercise 5"
+author: "Aaron Niskin"
+date: "September 8, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+A data set comprised of salaries for professors at an unnamed college can be found at
+
+```{r, echo=FALSE, include=FALSE}
+data_url <- "https://vincentarelbundock.github.io/Rdatasets/csv/car/Salaries.csv"
+```
+
+`r data_url`
+
+A codebook for the data can be found at
+
+<https://vincentarelbundock.github.io/Rdatasets/doc/car/Salaries.html>
+
+Download the data and aggregate to address the questions
+
+  
+```{r}
+data_sex <- read.csv(data_url)
+```
+
+  1. How does salary depend on rank and sex?
+
+First we should probably go through and check to see the completeness of our data:
+
+```{r}
+str(lapply(data_sex, unique))
+```
+
+So, it seems as though the only non-integer columns are the rank, discipline and sex factor columns. None of those three seem to have any ambiguous or obviously null-signifying values, so we can assume that `complete.cases` will give us an accurate level of correctness:
+
+```{r}
+sum(complete.cases(data_sex))
+```
+
+So, we can conclude that our data is complete. Now to answer the question:
+
+```{r}
+aggregate(salary ~ rank + sex, data_sex, mean)
+```
+  
+  2. How does salary depend on age and rank?
+
+```{r}
+quantile(data_sex$yrs.since.phd)
+quantile(data_sex$yrs.since.phd, seq(0, 10)*0.1)
+yrsSincePHD<- cut(data_sex$yrs.since.phd,
+                  breaks=quantile(data_sex$yrs.since.phd, seq(0, 1, 0.25)),
+                  include.lowest = TRUE)
+aggregate(salary ~ rank + yrsSincePHD, data_sex, mean)
+```
+  
+  Interestingly enough, it seems as though associate professors tend to get paid more the closer they are to graduation. You'll note that I chose to use `yrs.since.phd` as a signifier for age. This is just working with the data at hand. Of the two age-esque categories, this was more representative of the person's age than the other (which represented the years in service at that school).
+  
+  3. How does salary depend on discipline and sex?
+  
+```{r}
+yrsSincePHD<- cut(data_sex$yrs.since.phd,
+                  breaks=quantile(data_sex$yrs.since.phd, seq(0, 1, 0.25)),
+                  include.lowest = TRUE)
+aggregate(salary ~ rank + discipline, data_sex, mean)
+```
