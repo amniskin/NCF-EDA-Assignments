@@ -1,0 +1,11 @@
+((*- extends 'article.tplx' -*))
+((* block title *))
+\title{Time Series - Homework IV}
+\author{Phil Pope}
+\date{\today}
+((* endblock title *))
+
+((* block commands *))
+\setcounter{secnumdepth}{0} % Turns off numbering for sections
+((( super() )))
+((* endblock commands *))
