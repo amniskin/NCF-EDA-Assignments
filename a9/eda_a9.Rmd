@@ -146,7 +146,23 @@ Continuing your document, addressing the following questions
     ```
 
 11. **Consider the data frame consisting of the complete cases for the variables Bilirubin, ALK, SGOT and Albumin. What fraction of the variance does the first principal component account for?**
+    ```{r}
+    tmp2 <- tmp[,c("bilirubin", "alk phosphate", "sgot", "albumin")]
+    a <- princomp(tmp2[complete.cases(tmp2),])
+    a
+    ```
     
-    
+    ```{r}
+    a["loadings"]
+    ```
+    So about 25%.
 
 12. **Subsetting the data on Age, Sex, Steroid and Antivirals columns and join the resulting data frame with the data frame of complete cases for Age, Sex, Bilirubin, ALK, SGOT and Albumin. What are the dimensions of the resulting frame?**
+    
+    ```{r}
+    tmpA <- hep_data[,c("sex", "age", "steroid", "antivirals")]
+    tmpB <- hep_data[,c("sex", "age", "bilirubin", "alk phosphate", "sgot", "albumin")]
+    tmpC <- merge.data.frame(tmpA[complete.cases(tmpA),], 
+                             tmpB[complete.cases(tmpB),])
+    dim(tmpC)
+    ```
