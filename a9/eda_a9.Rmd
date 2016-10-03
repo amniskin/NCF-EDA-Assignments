@@ -1,0 +1,152 @@
+---
+title: "EDA - Assignment 9"
+author: "Aaron Niskin"
+date: "September 29, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+setwd("~/Documents/courses/newCollege/current/eda/assignments/a9/")
+```
+
+Navigate to the website
+
+```{r, include=FALSE, echo=FALSE}
+url <- "https://archive.ics.uci.edu/ml/datasets/Hepatitis"
+```
+
+`r url`
+
+Read the annotation provided. Download the associated hepatitis.data and the hepatitis.names files. Prepare an R Markdown file which documents the steps you take in carrying out the following
+
+1.  **Read the data into memory as a csv file**
+    ```{r, eval=FALSE}
+    data_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/hepatitis/hepatitis.data"
+    data_file <- "data.csv"
+    download.file(data_url, data_file)
+    names_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/hepatitis/hepatitis.names"
+    names_file <- "names.csv"
+    download.file(names_url, names_file)
+    ```
+    I do that at first so that every time I compile this PDF it won't try to download the files again and again. So now we want to read these files into memory. But before we do that, we're going to want to get rid of those pesky "?" NA values. So let's replace all of those using our favorite bash stream editing program, "sed"!
+    ```{bash}
+    cat data.csv | sed 's/\?/NA/g' > data_na.csv
+    ```
+    
+    Now when we import the data into R, it should identify the types far more easily.
+    
+    ```{r}
+    hep_data <- read.csv("data_na.csv", header=FALSE)
+    str(hep_data)
+    ```
+
+2.  **Name the features as described in the names file**
+    
+    So, first we check out that "names.txt" file. Then we notice section 7 seems to be describing the names of each of the columns. But then section 9 says, 
+    9.  Class Distribution:
+    
+            DIE: 32
+            
+            LIVE: 123
+    So if we were unsure of whether our names are listed in ascending or descending order, we can check by confirming that there are indeed 32 deaths and 123 live records. Unfortunately, if you check out column 1, the data is binary {1,2}, and not labeled as `live` or `die`. But we can count them. If there is a 32/123 split, we can be ralatively assured that the data is presented in ascending order (especially since this is the most logical way to present it anyway).
+    
+    ```{r}
+    sum(hep_data$V1 == 1)
+    sum(hep_data$V1 == 2)
+    ```
+    
+    This also gave us the beneifit of identifying that 1 corresponds with "die" and 2 with "live". Now since there are 20 different names here, and I'm pretty lazy, let's see if we can get this done programatically. First we're going to want to cat lines 30 - 50 into sed, then use sed to grab just the names, then feed that into a new file. And of course it turns out, as most things of this nature do, it would have been a little easier if I had just done it directly in a text editor. But this way was far more fun.
+    ```{bash}
+    head -n -41 names.txt | tail -n -21 | sed -r '/^\ *--.*$/d;s/^[0-9 \.]+([a-zA-Z ]+)\:.*$/\1/g;' > namesJust.txt
+    ```
+    
+    Now we're just about ready to read that file in!
+    
+    ```{r}
+    names(hep_data) <- lapply(strsplit(tolower(readLines("namesJust.txt")), "\n"), as.character)
+    ```
+    
+3.  **Write the result to memory as a csv file**
+    
+    ```{r}
+    write.csv(hep_data, "hep_data.csv", row.names = FALSE)
+    ```
+
+Continuing your document, addressing the following questions
+
+4.  **How many complete cases are there?**
+
+    ```{r}
+    sum(complete.cases(hep_data))
+    ```
+
+5.  **Subsetting the data on Age, Sex, Bilirubin, ALK, SGOT and Albumin, compute the number of missing values for the Bilirubin feature. Convert the last four features to numeric values. How many complete cases are there for the subsetted frame?**
+    
+    ```{r}
+    str(hep_data)
+    tmp <- as.data.frame(cbind(hep_data[,c("age", "sex")], sapply(
+          hep_data[, c("bilirubin", "alk phosphate", "sgot", "albumin")],
+            as.numeric)))
+    str(tmp)
+    sum(complete.cases(tmp))
+    sum(complete.cases(tmp[,"bilirubin"]))
+    ```
+
+6.  **Are there any outliers in the Bilirubin and Albumin entries?**
+    
+    ```{r}
+    quantile(tmp$bilirubin, na.rm = TRUE)
+    plot(tmp$bilirubin)
+    ```
+    
+    There do seem to be outliers, and there is a note about bilirubin specifically, but that seems to be mainly concerning the data's continuity. After doing a bit of research, it seems very likely that the bilirubin data corresponds to something called "direct bilirubin" measured in units of mmol. I owuld need more information to actually assess with any validity of this data with any measure of accuracy, but according to [MedicalHealthTests.com](medicalhealthtests.com]), if the previous assumption/semi-conclusion is true, then 5.1 is on the high side and our two data points around 8 are way too high.
+
+7.  **Bin the age variables in units of decades**
+    
+    So just to make this easier, let's do this...
+    
+    ```{r}
+    max(tmp$age)
+    min(tmp$age)
+    ```
+    
+    So we can bin our data from 0 to 80.
+    
+    ```{r}
+    age_groups <- cut(tmp$age, breaks = seq(0, 80, 10))
+    tmp[,"age"] <- age_groups
+    ```
+
+8.  **Aggregate the data to obtain mean readings for the last 4 variables as a function of sex and age, with age as a binned factor.**
+    
+    By last four variables, I'm going to assume that you mean, "BILIRUBIN", "ALK PHOSPHATE", "SGOT", "ALBUMIN".
+    
+    ```{r}
+    agg <- aggregate(tmp[,3:6], by=list(age=tmp$age, sex=tmp$sex), FUN=mean, na.rm=TRUE)
+    agg
+    ```
+
+9.  **Sort the data on the Bilirubin columns (ascending)**
+    ```{r}
+    agg[order(agg$bilirubin),]
+    ```
+
+10. **Standardize Bilirubin and Albumin and plot the outcome as a scatterplot.**
+    
+    So this depends on what you mean by standardize. If you mean something like a z-score, then we can compute it thusly:
+    ```{r}
+    std_bilirubin <- scale(tmp$bilirubin)
+    std_albumin   <- scale(tmp$albumin)
+    plot(std_bilirubin)
+    plot(std_albumin)
+    ```
+
+11. **Consider the data frame consisting of the complete cases for the variables Bilirubin, ALK, SGOT and Albumin. What fraction of the variance does the first principal component account for?**
+    
+    
+
+12. **Subsetting the data on Age, Sex, Steroid and Antivirals columns and join the resulting data frame with the data frame of complete cases for Age, Sex, Bilirubin, ALK, SGOT and Albumin. What are the dimensions of the resulting frame?**
