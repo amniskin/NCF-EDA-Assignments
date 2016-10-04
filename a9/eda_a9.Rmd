@@ -100,7 +100,9 @@ Continuing your document, addressing the following questions
     
     ```{r}
     quantile(tmp$bilirubin, na.rm = TRUE)
-    plot(tmp$bilirubin)
+    plot(scale(tmp$bilirubin))
+    plot(scale(tmp$albumin))
+    boxplot(tmp[,c("bilirubin", "albumin")])
     ```
     
     There do seem to be outliers, and there is a note about bilirubin specifically, but that seems to be mainly concerning the data's continuity. After doing a bit of research, it seems very likely that the bilirubin data corresponds to something called "direct bilirubin" measured in units of mmol. I owuld need more information to actually assess with any validity of this data with any measure of accuracy, but according to [MedicalHealthTests.com](medicalhealthtests.com]), if the previous assumption/semi-conclusion is true, then 5.1 is on the high side and our two data points around 8 are way too high.
@@ -132,7 +134,8 @@ Continuing your document, addressing the following questions
 
 9.  **Sort the data on the Bilirubin columns (ascending)**
     ```{r}
-    agg[order(agg$bilirubin),]
+    hep_sort <- hep_data[order(hep_data$bilirubin),]
+    str(hep_sort)
     ```
 
 10. **Standardize Bilirubin and Albumin and plot the outcome as a scatterplot.**
@@ -148,14 +151,20 @@ Continuing your document, addressing the following questions
 11. **Consider the data frame consisting of the complete cases for the variables Bilirubin, ALK, SGOT and Albumin. What fraction of the variance does the first principal component account for?**
     ```{r}
     tmp2 <- tmp[,c("bilirubin", "alk phosphate", "sgot", "albumin")]
-    a <- princomp(tmp2[complete.cases(tmp2),])
+    a <- prcomp(tmp2[complete.cases(tmp2),], center=TRUE, scale=TRUE)
     a
+    b <- princomp(tmp2[complete.cases(tmp2),], scores = TRUE, cor = TRUE)
+    b
+    c <- princomp(tmp2[complete.cases(tmp2),])
+    c
     ```
     
     ```{r}
-    a["loadings"]
+    summary(a)
+    summary(b)
+    summary(c)
+    b["loadings"]
     ```
-    So about 25%.
 
 12. **Subsetting the data on Age, Sex, Steroid and Antivirals columns and join the resulting data frame with the data frame of complete cases for Age, Sex, Bilirubin, ALK, SGOT and Albumin. What are the dimensions of the resulting frame?**
     
