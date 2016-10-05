@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
 ```
 
 ```{r, echo=FALSE}
@@ -29,8 +29,10 @@ Read the annotation.
 #Importing data
 
 1.  **Read the data into R as a csv file.**
-    ```{r}
+    ```{r, eval=FALSE}
     download.file(data_url, "data.csv")
+    ```
+    ```{r}
     dats <- read.csv("data.csv", header = FALSE)
     str(dats)
     ```
@@ -125,6 +127,18 @@ Read the annotation.
     ```
     
     So, "stroke" and "highway-mpg" have a 0.97 correlation.
+    
+    ```{r}
+    #### editted after turnin (this mistake bothered me so I found a way to automate it)
+    findMaxCor <- function(df) {
+      c <- cor(df[complete.cases(df),])
+      diag(c) <- 0
+      tmp2 <- which(c == max(c)) %% length(names(df))
+      tmp2[tmp2 == 0] <- length(names(df))
+      return(c(names(df)[tmp2], max(c)))
+    }
+    findMaxCor(car_data_reduced[,2:11])
+    ```
 
 #Data reduction
 11. **Consider a data frame consisting of the last 11 features of the original data. Perform a principal component analysis using the tool of your choice. How many components are required to account for 90% of the data?**
