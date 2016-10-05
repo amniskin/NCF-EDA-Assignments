@@ -1,0 +1,137 @@
+---
+title: "EDA - Exam 1"
+author: "Aaron Niskin"
+date: "October 04, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+setwd("~/Documents/courses/newCollege/current/eda/assignments/e1/")
+```
+
+This is a 60 minute exam. You are to write an R Markdown document that provides scripts for carrying out the following tasks. It is the work, not the answers, which will be evaluated.
+You may use the electronic resources at your disposal, but please do your own work.
+Do as much as you can. Mail your pdf to mcdonald@ncf.edu at the end of the 60 minute period.
+Navigate to the following page:
+
+```{r, echo=FALSE}
+url <- "https://archive.ics.uci.edu/ml/datasets/Automobile"
+data_url <- "https://archive.ics.uci.edu/ml/machine-learning-databases/autos/imports-85.data"
+```
+`r url`
+
+Read the annotation.
+
+#Importing data
+
+1.  **Read the data into R as a csv file.**
+    ```{r}
+    download.file(data_url, "data.csv")
+    dats <- read.csv("data.csv", header = FALSE)
+    str(dats)
+    ```
+    Which tells us that they are using "?" to denote NA values. So let's use bash to remove those (it's easier for me right now).
+    
+    ```{bash}
+    cat data.csv | sed 's/\?/NA/g' > data_NA.csv
+    ```
+    
+    ```{r}
+    dats <- read.csv("data_NA.csv", header = FALSE)
+    str(dats)
+    ```
+    Now it seems like everything is working quite well.
+    
+2.  **Use the following vector to name the features of the csv file\:**
+    ```{r}
+    features <- c("symboling", "normalized-losses","make", "fuel-type","aspiration", "num-of-doors","body-style", "drive-wheels", "engine-location", "wheel-base", "length", "width","height", "curb-weight", "engine-type", "num-of-cylinders", "engine-size", "fuel-system", "bore", "stroke", "compression-ratio", "horsepower", "peak-rpm", "city-mpg", "highway-mpg", "price")
+    ```
+    
+    ```{r}
+    names(dats) <- features
+    str(dats)
+    ```
+
+#Initial vetting
+
+3.  **How many complete cases are there?**
+    ```{r}
+    sum(complete.cases(dats))
+    ```
+    
+4.  **Subset the data on complete cases.**
+    ```{r}
+    dats_complete <- dats[complete.cases(dats),]
+    ```
+    
+5.  **Working with complete cases, what is the range of values for the feature “horsepower”? What is the mean value?**
+    ```{r}
+    summary(dats_complete$horsepower)
+    ```
+    So, 48 to 200 with a mean of 95.
+
+#Subsetting and binning
+6.  **Subset the data to include “make”" and ten of the last eleven variables, omitting “fuel-system”. Assign the outcome to a file called “car_data_reduced”. Convert the last ten variables of “car_data_reduced” to numeric.**
+    ```{r}
+    which(names(dats) == "make")
+    which(names(dats) == "fuel-system")
+    length(names(dats))
+    car_data_reduced <- dats[,c(3,16:17,19:26)]
+    str(car_data_reduced)
+    ```
+    So it seems like a straight conversion should be fine. If there were still factors in the last ten rows, we'd have to use `as.character` first.
+    ```{r}
+    car_data_reduced[,2:11] <- sapply(car_data_reduced[,2:11], as.numeric)
+    str(car_data_reduced)
+    ```
+7.  **Bin the “horsepower” feature as 5 intervals of equal length, with the right-hand-endpoint of the last interval determined by maximal value of the feature and the left-hand-endpoint determined by the minimal value of the feature. Add this “binned information” as a feature to car_data_reduced.**
+    ```{r}
+    seqMin <- min(car_data_reduced$horsepower, na.rm = TRUE)
+    seqMax <- max(car_data_reduced$horsepower, na.rm = TRUE)
+    step <- (seqMax - seqMin) / 5
+    hp_binned <- cut(car_data_reduced$horsepower,
+                     breaks = seq(seqMin, seqMax, step), 
+                     include.lowest = TRUE,
+                     labels = 1:5)
+    car_data_reduced$hp_binned <- as.integer(as.character(hp_binned))
+    str(car_data_reduced)
+    ```
+    
+8.  **What is the make of the car belonging to the third interval and having maximal price?**
+    ```{r}
+    max(car_data_reduced[car_data_reduced$hp_binned == 3,]$price, na.rm = TRUE)
+    ```
+
+#Aggregation
+9.  **Compute the median values for all variables in car_data_reduced except “make” and the binned information, aggregating on binned horsepower and the number of cylinders.**
+    ```{r}
+    which(names(car_data_reduced) == "make")
+    length(names(car_data_reduced))
+    agg <- aggregate(car_data_reduced[,2:12],
+                     by=list(num_cyl = car_data_reduced$`num-of-cylinders`,
+                             hp_binned = car_data_reduced$hp_binned),
+                     FUN = median,
+                     na.rm=TRUE)
+    agg
+    ```
+    
+10. **What pair of the last 10 variables (omitting the binned information) is maximally correlated? Construct a scatterplot for these variables.**
+    ```{r}
+    cor(car_data_reduced[complete.cases(car_data_reduced[,2:11]),2:11])
+    ```
+    
+    So, "stroke" and "highway-mpg" have a 0.97 correlation.
+
+#Data reduction
+11. **Consider a data frame consisting of the last 11 features of the original data. Perform a principal component analysis using the tool of your choice. How many components are required to account for 90% of the data?**
+    ```{r}
+    dim(dats_complete)
+    str(dats_complete)
+    summary(prcomp(dats_complete[19:26], center = TRUE, scale. = TRUE))
+    ```
+    
+12. **(Extra credit)Does the answer change if the variables are standardized prior to performing PCA?**
