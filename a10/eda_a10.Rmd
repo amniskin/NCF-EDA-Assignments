@@ -1,19 +1,38 @@
 ---
-title: "EDA - Assignment 10"
+title: "Predicting Violent Crime with Census Data"
 author: "Aaron Niskin"
 date: "November 10, 2016"
-output: pdf_document
+output:
+  pdf_document:
+    highlight: tango
+    toc: yes
+bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(tidy = TRUE, warning=FALSE, message=FALSE, echo=FALSE, results='hide')
 ```
 
+# Abstract
+[see @RCoreTeam].
+
+[see @Chang2015]
+
+[see @censusB]
+
 ```{r, echo=FALSE}
 setwd("~/Documents/courses/newCollege/current/eda/assignments/a10/")
 ```
 
-Data was taken from the Florida Department of Law Enforcement, and from the American Community Survey (ACS), data set ID: B20004 organized by the Census Bureau. The data contains: median earnings over a twelve month period by sex and education for those 25 years or older.
+# Introduction
+
+# Methods
+
+# Results
+
+# Discussion
+
+Data was taken from the Florida Department of Law Enforcement, and from the American Community Survey (ACS), data set ID: B20004 organized by the Census Bureau. The data contains: median earnings over a twelve month period by sex and education for those 25 years or older. The table IDs for those Census Bureau tables are ACS_**_1YR_B20004 where the "**" is replaced by the two digit year abbreviation (i.e. ACS_06_1YR_B20004 - ACS_12_1YR_B20004).
 
 Beuraux of labor statistics
 
@@ -85,4 +104,18 @@ edByC$County <- as.factor(gsub(" County, Florida", "", edByC$Geography))
 edByC <- edByC[,which(names(edByC) != "Geography")]
 str(edByC)
 unique(edByC$County)
+fullDf <- inner_join(FL_Crime_0612, edByC, by= c("year", "County"))
 ```
+
+```{r}
+ggplot(data=fullDf, aes(x=(Estimate..Bachelor.s.degree / Estimate..Total.), y=(Kidnap..Abduction + Simple.Assault))) + geom_point()
+ggplot(data=fullDf, aes(x=(Estimate..Graduate.or.professional.degree / Estimate..Total.), y=Kidnap..Abduction + Simple.Assault)) + geom_point() + facet_grid(year ~ .)
+```
+
+
+# Appendix
+Things
+
+## References
+
+## Code
