@@ -1,0 +1,407 @@
+---
+title: 'EDA: Crime In Florida'
+author: "P. McDonald"
+date: "November 10, 2016"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Last time
+
+*   Advice on presentations
+*   EDA
+    +  Feedback loops
+    +  Working with date/time
+    +  Finding the correct question
+
+Tukey:
+
+"An approximate answer to the right problem is worth a good deal more than an exact answer to an approximate problem."
+
+http://www.azquotes.com/author/14847-John_Tukey
+
+##Crime in Florida
+
+Crime statistics are maintained by the FBI and are open:
+
+http://www.ucrdatatool.gov/Search/Crime/Local/LocalCrime.cfm
+
+##Crime in Florida
+
+Crime statistics are maintained by the FBI and are open:
+
+http://www.ucrdatatool.gov/Search/Crime/Local/LocalCrime.cfm
+
+The associated tools allow for a variety of parameter selections.
+
+I downloaded eight years of data for Florida: eight tables formatted as csv.
+
+##Crime in Florida
+
+Crime statistics are also maintained by the State of Florida and are open:
+
+http://www.fdle.state.fl.us/cms/FSAC/Data-Statistics/UCR-Arrest-Data.aspx
+
+##Crime in Florida
+
+Crime statistics are also maintained by the State of Florida and are open:
+
+http://www.fdle.state.fl.us/cms/FSAC/Data-Statistics/UCR-Arrest-Data.aspx
+
+I downloaded files containing yearly reports of arrests for a variety of crimes in each county in Florida.
+
+##Crime in Florida
+
+Crime statistics are also maintained by the State of Florida and are open:
+
+http://www.fdle.state.fl.us/cms/FSAC/Data-Statistics/UCR-Arrest-Data.aspx
+
+I downloaded files containing yearly reports of arrests for a variety of crimes in each county in Florida.
+
+I downloaded yearly reports from 2006-2012: seven tables formatted as xslx.
+
+##Crime in Florida
+
+Crime statistics are also maintained by the State of Florida and are open:
+
+http://www.fdle.state.fl.us/cms/FSAC/Data-Statistics/UCR-Arrest-Data.aspx
+
+I downloaded files containing yearly reports of arrests for a variety of crimes in each county in Florida.
+
+I downloaded yearly reports from 2006-2012: seven tables formatted as xslx.
+
+There is some munging to be done.
+
+##Reading files in a directory
+
+It's possible to automate tasks using lists.  We can read the files as a batch:
+
+```{r,eval=FALSE}
+filenames <- list.files("~/Classes/16-17/Fall/EDA2016/Data/FDLE", 
+                        pattern="*.xls", full.names=TRUE)
+library(tidyverse)
+library(xlsx)
+
+ldf <- lapply(filenames, function(x) 
+  read.xlsx(x, sheetName ="PT2(1)", startRow=3))
+
+CNames <- names(as.data.frame(ldf[1]))
+Alachua_label <- lapply(ldf, function(x) 
+  which((x[,1] == "Alachua County") | (x[,1] =="Alachua") ))
+Washington_label <- lapply(ldf, function(x) 
+  which((x[,1] == "Washington County") | (x[,1] == "Washington") ))
+```
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+filenames <- list.files("~/Classes/16-17/Fall/EDA2016/Data/FDLE", pattern="*.xls", full.names=TRUE)
+library(xlsx)
+library(tidyverse)
+ldf <- lapply(filenames, function(x) read.xlsx(x, sheetName ="PT2(1)", startRow=3))
+CNames <- names(as.data.frame(ldf[1]))
+Alachua_label <- lapply(ldf, function(x) which((x[,1] == "Alachua County") | (x[,1] =="Alachua") ))
+Washington_label <- lapply(ldf, function(x) which((x[,1] == "Washington County") | (x[,1] == "Washington") ))
+```
+##Checking completeness
+
+It would be good to know that there are a constant number of counties:
+
+```{r}
+unlist(Washington_label) - unlist(Alachua_label)
+```
+
+##Checking completeness
+
+It would be good to know that there are a constant number of counties:
+
+```{r}
+unlist(Washington_label) - unlist(Alachua_label)
+```
+
+A good sign:  all the files have the same number of rows: `r unlist(Washington_label)[1] - unlist(Alachua_label)[1]`.
+
+Another good sign:  Florida has 67 counties.
+
+##Naming tricks
+
+Our goal is to concatenate a list of files into a data frame.
+
+##Naming tricks
+
+Our goal is to concatenate a list of files into a data frame.
+
+A simple strategy is to make sure the files have the same number of columns and use rbind.  
+
+##Naming tricks
+
+Our goal is to concatenate a list of files into a data frame.
+
+A simple strategy is to make sure the files have the same number of columns and use rbind.
+
+It turns out that there are other obstructions.  One serious obstruction is column names.  
+
+##Naming tricks
+
+Our goal is to concatenate a list of files into a data frame.
+
+A simple strategy is to make sure the files have the same number of columns and use rbind.
+
+It turns out that there are other obstructions.  One serious obstruction is column names.  
+
+Here is a way to set all column names to NULL
+```{r}
+NULL_Name <- function(x) {
+  names(x) <- NULL
+  return(x)
+}
+ldf <- lapply(ldf, NULL_Name)
+```
+
+##Generating a frame:
+Now build a data frame  by truncatating each frame and using rbind:
+
+```{r,eval=FALSE}
+L<- length(as.data.frame(ldf[1])[1,])
+FL_Crime_0612 <- as.data.frame(ldf[1])[Alachua_label[[1]]: 
+                                         Washington_label[[1]],]
+for (i in 2:length(ldf)) {
+  FL_Crime_0612 <- rbind(FL_Crime_0612, 
+                         as.data.frame(ldf[i])[Alachua_label[[i]]: 
+                                         Washington_label[[i]],1:L])
+}
+
+FL_Crime_0612 <- as.data.frame(FL_Crime_0612)
+names(FL_Crime_0612) <-CNames
+str(FL_Crime_0612)
+```
+```{r,echo=FALSE}
+L<- length(as.data.frame(ldf[1])[1,])
+FL_Crime_0612 <- as.data.frame(ldf[1])[Alachua_label[[1]]:Washington_label[[1]],]
+for (i in 2:length(ldf)) {
+  FL_Crime_0612 <- rbind(FL_Crime_0612, as.data.frame(ldf[i])[Alachua_label[[i]]:Washington_label[[i]],1:L])
+}
+FL_Crime_0612 <- as.data.frame(FL_Crime_0612)
+names(FL_Crime_0612) <-CNames
+str(FL_Crime_0612)
+```
+##Cleaning things up
+
+Let's get rid of the "County" label distinction, fix data types and attach years:
+
+```{r,eval=FALSE}
+FL_Crime_0612[,1] <- as.factor(gsub("\\ County", "", FL_Crime_0612[,1]))
+FL_Crime_0612[,1] <- as.factor(gsub("Desoto", "DeSoto", FL_Crime_0612[,1]))
+
+FL_Crime_0612[,2:length(FL_Crime_0612[1,])] <-  
+  sapply(FL_Crime_0612[,2:length(FL_Crime_0612[1,])], as.integer)
+
+start <- rep(2006,67)
+FL_Crime_0612$Year <- c(start,start+1,start+2,start+3,start+4,
+                        start+5,start+6)
+colnames(FL_Crime_0612)[1] <- "County"
+str(FL_Crime_0612)
+```
+```{r,echo=FALSE}
+FL_Crime_0612[,1] <- as.factor(gsub("\\ County", "", FL_Crime_0612[,1]))
+
+FL_Crime_0612[,2:length(FL_Crime_0612[1,])] <-  sapply(FL_Crime_0612[,2:length(FL_Crime_0612[1,])], as.integer)
+
+start <- rep(2006,67)
+FL_Crime_0612$Year <- c(start,start+1,start+2,start+3,start+4,start+5,start+6)
+colnames(FL_Crime_0612)[1] <- "County"
+str(FL_Crime_0612)
+```
+
+##Write the file:
+
+Now that we have a clean data frame, write it to disk:
+
+```{r,eval=FALSE}
+write.csv(FL_Crime_0612, "~/Classes/16-17/Fall/EDA2016/Data/FDLE/
+          FL_Crime_0612.csv")
+```
+```{r,echo=FALSE}
+write.csv(FL_Crime_0612, "~/Classes/16-17/Fall/EDA2016/Data/FDLE/FL_Crime_0612.csv",row.names=FALSE)
+```
+
+##Other parameters
+
+We can study the correlation of crime with other factors.
+
+##Other parameters
+
+We can study the correlation of crime with other factors.
+
+For example, there is information concerning median county income is available from a variety of sources including the US Census Bureau:
+
+http://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?src=CF
+
+##Other parameters
+
+We can study the correlation of crime with other factors.
+
+For example, there is information concerning median county income is available from a variety of sources including the US Census Bureau:
+
+http://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?src=CF
+
+Sadly, the only years available are 2009-2014
+
+##Other parameters
+
+We can study the correlation of crime with other factors.
+
+For example, there is information concerning median county income is available from a variety of sources including the US Census Bureau:
+
+http://factfinder.census.gov/faces/tableservices/jsf/pages/productview.xhtml?src=CF
+
+Sadly, the only years available are 2009-2014
+
+We already have the code required to munge and clean the data
+
+##Income information
+
+First get the information into memory:
+
+```{r}
+filenames <- list.files("~/Classes/16-17/Fall/EDA2016/Data/IncomeFL/ACS", 
+                        pattern="*.csv", full.names=TRUE)
+
+ldf <- lapply(filenames, function(x) 
+  read.csv(x, header = TRUE))
+ldf <- lapply(ldf, function(x) as.data.frame(x)[,7:9])
+Alachua_label <- lapply(ldf, function(x) which((x[,1] == "Alachua County") | (x[,1] =="Alachua") ))
+Washington_label <- lapply(ldf, function(x) which((x[,1] == "Washington County") | (x[,1] == "Washington") ))
+ldf <- lapply(ldf, NULL_Name)
+
+```
+
+##Income Data Frame
+Generate the frame
+
+```{r}
+L<- length(as.data.frame(ldf[1])[1,])
+FL_Income_0914 <- as.data.frame(ldf[1])[Alachua_label[[1]]:Washington_label[[1]],]
+
+for (i in 2:length(ldf)) {
+  FL_Income_0914 <- rbind(FL_Income_0914, as.data.frame(ldf[i])[Alachua_label[[1]]:Washington_label[[1]],])
+}
+
+FL_Income_0914 <- as.data.frame(FL_Income_0914)
+names(FL_Income_0914) <-c("County", "Median_Income", "SE")
+str(FL_Income_0914)
+```
+
+##Clean up and write to disk
+```{r}
+FL_Income_0914[,1] <- as.factor(gsub("\\ County", "", FL_Income_0914[,1]))
+
+start <- rep(2009,67)
+FL_Income_0914$Year <- c(start,start+1,start+2,start+3,start+4,start+5)
+
+write.csv(FL_Income_0914, "~/Classes/16-17/Fall/EDA2016/Data/IncomeFL/FL_Income_0914.csv",row.names=FALSE)
+```
+
+There is a small problem:  If we want to study the correlation of income and crime, we need *crime rates.*
+
+By now we know how to find such things and construct the required data frame.
+
+##Population data
+
+A good source for population data is the US Census site:
+
+https://www.census.gov/popest/data/counties/asrh/2015/PEPSR6H.html
+
+##Population data
+
+A good source for population data is the US Census site:
+
+https://www.census.gov/popest/data/counties/asrh/2015/PEPSR6H.html
+
+
+I dowloaded data from 2010-2015.
+
+We load the data and take a look:
+
+```{r}
+FL_Pop_2010_15 <- read.csv("~/Classes/16-17/Fall/EDA2016/Data/PopulationFL/PopFL201015.csv", header=TRUE, row.names=NULL)
+names(FL_Pop_2010_15)
+```
+
+For the time being, "totpop" looks useful
+
+##Total population
+
+It appears we can get what we need by filtering the "sexid" and "hispid" features:
+
+```{r}
+FLP <- FL_Pop_2010_15 %>% filter(Sex.id=="totsex" & Hisp.id =="tothisp") %>%select(c(2,9,10))
+FLP[,3] <- as.numeric(as.character(FLP[,3]))
+labels <- grep("July", FLP[,1])
+FLP <- FLP[labels,]
+head(FLP,n=10)
+```
+
+##Cleaning population
+
+We should get rid of the extra words:
+
+```{r}
+FLP[,2] <- gsub("\\ County, Florida", "", FLP[,2])
+FLP[,1] <- gsub("July 1, ", "", FLP[,1])
+names(FLP) <- c("Year", "County", "Total_pop")
+FLP <- FLP %>% arrange(Year)
+FLP[,1] <- as.numeric(FLP[,1])
+FLP <- FLP[,c(2,3,1)]
+FLP[,1] <- as.factor(FLP[,1])
+str(FLP)
+```
+
+##Correlations
+
+To study correlations between income and crime in Florida, we merge our data frames
+
+```{r}
+FCI <- inner_join(FL_Crime_0612, FL_Income_0914)
+FCIP <- inner_join(FCI, FLP)
+str(FCIP)
+```
+
+##Variable(s) of interest
+Now we can compute rates.  Let's study assault:
+
+```{r}
+FCIPA <- FCIP %>% mutate(Assault_Rate = (Simple.Assault/Total_pop))
+```
+
+##Quick images: boxplot
+```{r}
+ggplot(data=FCIPA, aes(x=as.factor(Year), y=Assault_Rate)) + 
+  geom_boxplot()
+```
+
+##Quick images: scatterplot
+```{r}
+ggplot(data=FCIPA, aes(x=Median_Income, y=Assault_Rate)) + 
+  geom_point()
+```
+
+##Quick images: scatterplot
+```{r}
+ggplot(data=FCIPA, aes(x=Median_Income, y=Assault_Rate)) + 
+  geom_point(aes(color=as.factor(Year)))
+```
+
+##Quick images: scatterplot
+```{r}
+ggplot(data=FCIPA, aes(x=Median_Income, y=Assault_Rate)) + 
+  geom_point() +
+  geom_smooth(method="lm")
+```
+
+##Quick images: scatterplot
+```{r}
+ggplot(data=FCIPA, aes(x=Median_Income, y=Assault_Rate, group=as.factor(Year))) + 
+  geom_point() +
+  geom_smooth( method="lm") 
+```

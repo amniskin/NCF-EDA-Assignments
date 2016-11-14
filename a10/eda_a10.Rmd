@@ -1,0 +1,88 @@
+---
+title: "EDA - Assignment 10"
+author: "Aaron Niskin"
+date: "November 10, 2016"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(tidy = TRUE, warning=FALSE, message=FALSE, echo=FALSE, results='hide')
+```
+
+```{r, echo=FALSE}
+setwd("~/Documents/courses/newCollege/current/eda/assignments/a10/")
+```
+
+Data was taken from the Florida Department of Law Enforcement, and from the American Community Survey (ACS), data set ID: B20004 organized by the Census Bureau. The data contains: median earnings over a twelve month period by sex and education for those 25 years or older.
+
+Beuraux of labor statistics
+
+```{r}
+library(xlsx)
+library(tidyverse)
+filenames <- list.files("ignore/FDLE", pattern="*.xls", full.names=TRUE)
+ldf <- lapply(filenames, function(x) read.xlsx(x, sheetName ="Part II (1)", startRow=3))
+
+#Now to confirm that the structure is regular (with respect to rows).
+Alachua_label <- lapply(ldf, function(x) which((x[,1] == "Alachua County") | (x[,1] =="Alachua") ))
+Washington_label <- lapply(ldf, function(x) which((x[,1] == "Washington County") | (x[,1] == "Washington") ))
+unlist(Washington_label) - unlist(Alachua_label)
+```
+
+```{r}
+# To check if the files all have the same column order:
+lapply(ldf, function(x) {return(names(x))})
+```
+
+Note: I noticed that in the last file, the data starts on column 4 instead of column 3, so I deleted column 3 (and column 5 which was empty).
+
+```{r}
+# Because the different files have different column names
+CNames <- names(as.data.frame(ldf[1]))
+L<- length(as.data.frame(ldf[1])[1,])
+year = 2006
+FL_Crime_0612 <- as.data.frame(ldf[1])[Alachua_label[[1]]: Washington_label[[1]],]
+FL_Crime_0612$year = year
+for (i in 2:length(ldf)) {
+  year = year + 1
+  tmp <- as.data.frame(ldf[i])[Alachua_label[[i]]:Washington_label[[i]],1:L]
+  names(tmp) <- CNames
+  tmp$year = year
+  FL_Crime_0612 <- rbind(FL_Crime_0612, tmp)
+  rm(tmp)
+}
+rm(list = c("i", "year", "L", "CNames", "filenames", "ldf", "Alachua_label", "Washington_label"))
+
+names(FL_Crime_0612)[1] <- "County"
+```
+
+```{r}
+FL_Crime_0612[,1] <- as.factor(gsub("\\ County", "", FL_Crime_0612[,1]))
+unique(FL_Crime_0612$County)
+FL_Crime_0612[,1] <- as.factor(gsub("Desoto", "DeSoto", FL_Crime_0612[,1]))
+unique(FL_Crime_0612$County)
+write.csv(FL_Crime_0612, "ignore/FDLE/FL_Crime_0612.csv",row.names=FALSE)
+```
+
+```{r}
+filenames <- list.files("ignore/ACS_B20004/", pattern="*ann.csv", full.names=TRUE)
+
+ldf <- lapply(filenames, function(x) read.csv(x, header = TRUE, skip = 1, na.strings = c("-", "***", "*****", "N", "(X)"), stringsAsFactors = FALSE))
+startYear = 2006
+colList = c(3,4,6,8,10,12,14)
+edByC <- ldf[[1]][,colList]
+edByC$year <- startYear
+for (i in 2:length(ldf)) {
+  tmp <- ldf[[i]][,colList]
+  # This line is because file number 7 changed the naming scheme
+  names(tmp) <- gsub("Total\\.\\.\\.\\.", "", names(tmp))
+  tmp$year = startYear + i - 1
+  edByC <- rbind(edByC, tmp)
+  rm(tmp)
+}
+rm(list= c("i", "startYear", "colList", 'filenames', "ldf"))
+edByC$County <- as.factor(gsub(" County, Florida", "", edByC$Geography))
+edByC <- edByC[,which(names(edByC) != "Geography")]
+str(edByC)
+unique(edByC$County)
+```
