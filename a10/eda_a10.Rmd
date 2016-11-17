@@ -14,19 +14,21 @@ knitr::opts_chunk$set(tidy = TRUE, warning=FALSE, message=FALSE, echo=FALSE, res
 ```
 
 # Abstract
-[see @RCoreTeam].
-
-[see @Chang2015]
+Does poverty have a notable effect on arrest rates?
 
 [see @censusB]
 
 ```{r, echo=FALSE}
 setwd("~/Documents/courses/newCollege/current/eda/assignments/a10/")
+library(xlsx)
+library(tidyverse)
+library(xlsx)
 ```
 
 # Introduction
 
 # Methods
+About the data: [see @pop06 and, @pop12]
 
 # Results
 
@@ -36,9 +38,7 @@ Data was taken from the Florida Department of Law Enforcement, and from the Amer
 
 Beuraux of labor statistics
 
-```{r}
-library(xlsx)
-library(tidyverse)
+```{r, eval = FALSE}
 filenames <- list.files("ignore/FDLE", pattern="*.xls", full.names=TRUE)
 ldf <- lapply(filenames, function(x) read.xlsx(x, sheetName ="Part II (1)", startRow=3))
 
@@ -46,36 +46,32 @@ ldf <- lapply(filenames, function(x) read.xlsx(x, sheetName ="Part II (1)", star
 Alachua_label <- lapply(ldf, function(x) which((x[,1] == "Alachua County") | (x[,1] =="Alachua") ))
 Washington_label <- lapply(ldf, function(x) which((x[,1] == "Washington County") | (x[,1] == "Washington") ))
 unlist(Washington_label) - unlist(Alachua_label)
-```
 
-```{r}
 # To check if the files all have the same column order:
 lapply(ldf, function(x) {return(names(x))})
-```
 
-Note: I noticed that in the last file, the data starts on column 4 instead of column 3, so I deleted column 3 (and column 5 which was empty).
+# Note: I noticed that in the last file, the data starts on column 4 instead of column 3, so I deleted column 3 (and column 5 which was empty).
 
-```{r}
 # Because the different files have different column names
 CNames <- names(as.data.frame(ldf[1]))
 L<- length(as.data.frame(ldf[1])[1,])
 year = 2006
 FL_Crime_0612 <- as.data.frame(ldf[1])[Alachua_label[[1]]: Washington_label[[1]],]
-FL_Crime_0612$year = year
+FL_Crime_0612$Year = year
 for (i in 2:length(ldf)) {
   year = year + 1
   tmp <- as.data.frame(ldf[i])[Alachua_label[[i]]:Washington_label[[i]],1:L]
   names(tmp) <- CNames
-  tmp$year = year
+  tmp$Year = year
   FL_Crime_0612 <- rbind(FL_Crime_0612, tmp)
   rm(tmp)
 }
 rm(list = c("i", "year", "L", "CNames", "filenames", "ldf", "Alachua_label", "Washington_label"))
 
 names(FL_Crime_0612)[1] <- "County"
-```
+FL_Crime_0612$County <- as.factor(gsub("Miami Dade", "Miami-Dade", FL_Crime_0612$County))
+str(FL_Crime_0612)
 
-```{r}
 FL_Crime_0612[,1] <- as.factor(gsub("\\ County", "", FL_Crime_0612[,1]))
 unique(FL_Crime_0612$County)
 FL_Crime_0612[,1] <- as.factor(gsub("Desoto", "DeSoto", FL_Crime_0612[,1]))
@@ -84,6 +80,141 @@ write.csv(FL_Crime_0612, "ignore/FDLE/FL_Crime_0612.csv",row.names=FALSE)
 ```
 
 ```{r}
+FL_Crime_0612 <- read.csv("ignore/FDLE/FL_Crime_0612.csv")
+```
+
+```{r, eval=FALSE}
+#### To get population by county by year
+#### First remove leading periods and any extraneous rows
+tmpDf <- read.csv("ignore/population/pop_00-09_edit.csv", stringsAsFactors = FALSE)
+names(tmpDf)[1] <- "County"
+names(tmpDf) <- gsub("July.1..", "pop_", names(tmpDf))
+popYear <- tmpDf[,c("County", "pop_2006")]
+popYear <- cbind(popYear, 2006)
+names(popYear)[3] <- "Year"
+names(popYear)[2] <- "Population"
+popYear$Population <- as.numeric(gsub(",", "", popYear$Population))
+for(i in 7:9){
+  tmp <- tmpDf[,c("County", paste("pop_200", i, sep = ""))]
+  tmp <- cbind(tmp, 2000+i)
+  names(tmp)[3] <- "Year"
+  names(tmp)[2] <- "Population"
+  tmp$Population <- as.numeric(gsub(",", "", tmp$Population))
+  popYear <- rbind(popYear, tmp)
+  rm(tmp)
+}
+rm(list= c("tmpDf", "i"))
+tmpDf <- read.csv("ignore/population/PEP_2012_PEPANNRES_with_ann.csv", stringsAsFactors = FALSE, skip = 1)
+tmpDf <- tmpDf[,c(3,6:8)]
+names(tmpDf) <- c("County", "pop_2010", "pop_2011", "pop_2012")
+for(i in 10:12){
+  tmp <- tmpDf[,c("County", paste("pop_20", i, sep = ""))]
+  tmp <- cbind(tmp, 2000+i)
+  names(tmp)[3] <- "Year"
+  names(tmp)[2] <- "Population"
+  tmp$Population <- as.numeric(gsub(",", "", tmp$Population))
+  tmp$County <- as.factor(gsub("\\ County,\\ Florida", "", tmp$County))
+  popYear <- rbind(popYear, tmp)
+  rm(tmp)
+}
+rm(list= c("tmpDf", "i"))
+write.csv(popYear, "ignore/population/popYear.csv", row.names = FALSE)
+```
+
+```{r}
+popYear <- read.csv("ignore/population/popYear.csv")
+```
+
+
+```{r, eval=FALSE}
+### For government statistics
+govDf <- read.csv("ignore/gov/COG_2012_ORG13.ST05P_with_ann.csv", skip = 1, na.strings = c("-"))
+names(govDf)[which(names(govDf) == "Geographic.area..4..1")] <- "County"
+govDf$County <- as.factor(gsub("\\ County", "", govDf$County))
+govDf <- govDf[, c(7:13, 15:17)]
+write.csv(govDf, "ignore/gov/govDf.csv", row.names=FALSE)
+```
+
+```{r}
+govDf <- read.csv("ignore/gov/govDf.csv")
+```
+
+```{r, eval=FALSE}
+#### For voting history
+tmpDf <- read.xlsx2("ignore/gen2012_countyprecinctparty.xls", sheetName = "Sheet1")
+tmpDf$COUNT <- as.integer(as.character(tmpDf$COUNT...))
+tmpVoterDf <- select(tmpDf, -PRECINCT_NUM) %>% select(-COUNT...) 
+tmpVoterDf <- tmpVoterDf %>% group_by(COUNTY_ID, PARTY_GROUP) %>% summarize(COUNT = sum(COUNT)) %>% mutate(PARTY_GROUP = as.character(PARTY_GROUP)) %>% ungroup() %>% group_by(COUNTY_ID) %>% spread(PARTY_GROUP, COUNT) 
+tmpVoterDf <- rename(tmpVoterDf, Abbv = COUNTY_ID)
+
+countyAbbs <- "ALA-Alachua-North	HAM-Hamilton-North	OKA-Okaloosa-Panhandle
+BAK-Baker-North	HAR-Hardee-Central	OKE-Okeechobee-Central
+BAY-Bay-Panhandle	HEN-Hendry-South	ORA-Orange-Central
+BRA-Bradford-North	HER-Hernando-Central	PAL-Palm Beach-South
+BRE-Brevard-Central	HIG-Highlands-Central	PAS-Pasco-Central
+BRO-Broward-South	HIL-Hillsborough-Central	PIN-Pinellas-Central
+CAL-Calhoun-Panhandle	HOL-Holmes-Panhandle	POL-Polk-Central
+CHA-Charlotte-Central	IND-Indian River-Central	PUT-Putnam-North
+CIT-Citrus-Central	JAC-Jackson-Panhandle	SAR-Sarasota-Central
+CLA-Clay-North	JEF-Jefferson-Panhandle	SEM-Seminole-Central
+COLL-Collier-South	LAF-Lafayette-North	SJO-St. Johns-North
+COLU-Columbia-North	LAK-Lake-Central	SLU-St. Lucie-Central
+DAD-Dade-South	LEE-Lee-South	SRO-Santa Rosa -Panhandle
+DES-DeSoto-Central	LEO-Leon-Panhandle	SUM-Sumter-Central
+DIX-Dixie-North	LEV-Levy-North	SUW-Suwanee-North
+DUV-Duval-North	LIB-Liberty-Panhandle	TAY-Taylor-North
+ESC-Escambia-Panhandle	MAD-Madison-North	UNI-Union-North
+FLA-Flagler-North	MAN-Manatee-Central	VOL-Volusia-Central
+FRA-Franklin-Panhandle	MARI-Marion-North	WAK-Wakulla-Panhandle
+GAD-Gadsden-Panhandle	MART-Martin-Central	WAL-Walton-Panhandle
+GIL-Gilchrist-North	MON-Monroe-South	WAS-Washington-Panhandle
+GLA-Glades-Central	NAS-Nassau-North	 
+GUL-Gulf-Panhandle	OSC-Osceola-Central"
+
+countyAbbs <- gsub("\\n", ",", gsub("\\t", ",", countyAbbs))
+tmp <- strsplit(countyAbbs, ",")[1]
+tmp <- as.data.frame(lapply(tmp, function(st) gsub("(.*)-(.*)-.*", "\\1-\\2", st)))
+names(tmp) <- "Abbv"
+countyAbbvs <- filter(tmp, unlist(1:length(tmp$Abbv) %in% grep("[A-Z]", tmp$Abbv))) %>% separate(Abbv, c("Abbv", "County"), sep="-")
+countyAbbvs$County <- as.factor(gsub("Dade", "Miami-Dade", countyAbbvs$County))
+countyAbbvs$Abbv <- countyAbbvs$Abbv %>% gsub("COLL", "CLL", .) %>% gsub("COLU", "CLM", .) %>% gsub("SJO", "STJ", .) %>% gsub("SLU", "STL", .) %>% gsub("SRO", "SAN", .) %>% gsub("MARI", "MRN", .) %>% gsub("MART", "MRT", .)
+
+voterDf <- tmpVoterDf %>% full_join(countyAbbvs)
+voterDf <- voterDf[,c(5,2,4,3)]
+write.csv(countyAbbvs, "ignore/countyAbbvs.csv", row.names=FALSE)
+rm(list=c("tmpDf", "countyAbbs", "tmp", "tmpVoterDf", "countyAbbvs"))
+write.csv(voterDf, "ignore/voteByCounty.csv", quote = FALSE, row.names = FALSE)
+```
+
+```{r}
+voterDf = read.csv("ignore/voteByCounty.csv")
+```
+
+[see @voter]
+
+http://dos.myflorida.com/elections/data-statistics/voter-registration-statistics/bookclosing/bookclosing-reports-regular/
+
+http://entnemdept.ifas.ufl.edu/teneb/florida_checklist_map.htm
+for the abbreviations
+
+```{r, eval=FALSE}
+mergedDf <- FL_Crime_0612 %>% inner_join(popYear)
+get_ratio <- function(col1, col2){
+  tmp <- sapply(1:length(col1), function(i) col1[[i]] * 1.0 / col2[[i]])
+  return(tmp)
+}
+tmpDf <- mergedDf %>% select(2:11) %>% mutate_each(funs(function(col) { return(get_ratio(col, mergedDf$Population)) }))
+tmpDf <- mergedDf %>% group_by(County) %>% select(2:11) %>% summarise_each(funs(sum)) %>% mutate_all(funs( function(x) {return(x / mergedDf$Population)}))
+str(tmpDf)
+govMerged <- tmpDf %>% inner_join(govDf)
+str(govMerged)
+```
+
+
+
+```{r, eval=FALSE}
+### The following are for the county demographics data
+#### Only some counties are included
 filenames <- list.files("ignore/ACS_B20004/", pattern="*ann.csv", full.names=TRUE)
 
 ldf <- lapply(filenames, function(x) read.csv(x, header = TRUE, skip = 1, na.strings = c("-", "***", "*****", "N", "(X)"), stringsAsFactors = FALSE))
@@ -107,15 +238,48 @@ unique(edByC$County)
 fullDf <- inner_join(FL_Crime_0612, edByC, by= c("year", "County"))
 ```
 
-```{r}
+```{r, eval=FALSE}
 ggplot(data=fullDf, aes(x=(Estimate..Bachelor.s.degree / Estimate..Total.), y=(Kidnap..Abduction + Simple.Assault))) + geom_point()
+
 ggplot(data=fullDf, aes(x=(Estimate..Graduate.or.professional.degree / Estimate..Total.), y=Kidnap..Abduction + Simple.Assault)) + geom_point() + facet_grid(year ~ .)
+
+ggplot(data=fullDf, aes(x=Estimate..Graduate.or.professional.degree, y=Kidnap..Abduction + Simple.Assault)) + geom_point() + facet_grid(year ~ .)
+
+ggplot(data=fullDf, aes(x=Estimate..Graduate.or.professional.degree, y=Kidnap..Abduction + Simple.Assault)) + geom_point()
+
+ggplot(data=fullDf, aes(x=(Estimate..Graduate.or.professional.degree / Estimate..Bachelor.s.degree), y=(Kidnap..Abduction + Simple.Assault))) + geom_point()
+
+ggplot(data=fullDf, aes(x=Estimate..Total., y=Kidnap..Abduction + Simple.Assault)) + geom_point()
+
+ggplot(data=fullDf, aes(x = Estimate..Total., y=Estimate..Graduate.or.professional.degree)) + geom_point()
+
+ggplot(data=fullDf, aes(x=Kidnap..Abduction, y=Simple.Assault)) + geom_point()
+fullDf[fullDf$Kidnap..Abduction > 100, "County"]
+fullDf[fullDf$Simple.Assault > 8000, "County"]
+
+ggplot(data=fullDf, aes(x=Kidnap..Abduction, y=Fraud)) + geom_point()
+fullDf[fullDf$Fraud > 1200, "County"]
+
+ggplot(data=fullDf, aes(x=Simple.Assault, y=Fraud)) + geom_point()
+fullDf[fullDf$Fraud > 1200, "County"]
+
+ggplot(data=fullDf, aes(x=Simple.Assault, y=Embezzlement)) + geom_point()
+fullDf[fullDf$Fraud > 1200, "County"]
+
+ggplot(data=fullDf[fullDf$Kidnap..Abduction < 100,], aes(x=Kidnap..Abduction, y=Arson)) + geom_point()
+
+ggplot(data=fullDf, aes(x=Extortion..Blackmail, y=Embezzlement)) + geom_point()
+
+ggplot(data=fullDf, aes(x=Estimate..Total., y=Drug.Arrest)) + geom_point()
+fullDf[fullDf$Drug.Arrest > 10000, "County"]
+fullDf[fullDf$County == "Miami-Dade", "County"]
+
 ```
 
 
 # Appendix
 Things
 
-## References
-
 ## Code
+
+## References
